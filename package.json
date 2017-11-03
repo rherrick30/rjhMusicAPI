@@ -1,0 +1,30 @@
+ {
+  "name": "rjhmusicapi",
+  "version": "1.0.0",
+  "description": "Music api: Robert J Herrick 2017.07.28",
+  "scripts": {
+    "testApi": "babel-node testScript.js",
+    "server" : "babel-node server.js",
+    "start": "nodemon server.js --exec babel-node"
+  },
+  "author": "Robert J Herrick",
+  "license": "MIT",
+  "dependencies": {
+    "whatwg-fetch": "1.0.0"
+  },
+  "devDependencies": {
+    "babel-cli": "6.16.0",
+    "babel-core": "6.17.0",
+    "babel-loader": "6.2.5",
+    "babel-preset-latest": "6.16.0",
+    "babel-register": "6.16.3",
+    "eslint": "3.8.1",
+    "eslint-plugin-import": "2.0.1",
+    "eslint-watch": "2.1.14",
+    "webpack": "1.13.2",
+    "webpack-dev-middleware": "1.8.4",
+    "webpack-hot-middleware": "2.13.0",
+    "webpack-md5-hash": "0.0.5"
+  }
+}
+
