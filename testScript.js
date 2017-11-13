@@ -277,6 +277,10 @@ songs.forEach((e) => {
 console.log(`there were ${songs.length} items returned`);
 
 
+collectionApi.albumQuery( {'aquisitionYear':2017}).forEach( (a) =>{
+    console.log(`${a.title} by ${a.artist}`);
+}); 
+
 
 /**/
 
