@@ -51,6 +51,28 @@ let getNextId = (collection) => {
     return returnValue;
 }
 
+let convertColumn = (obj, colName, parseFunct) =>{
+    if(obj){
+        if(obj[colName]){
+            obj[colName] = (parseFunct(obj[colName]) != NaN) ? parseFunct(obj[colName]) : obj[colName];
+        }
+    }
+    return obj;
+};
+
+let convertAlbum = (alb) => {
+    if(alb){
+        alb = convertColumn(alb,'_id',parseInt);
+        alb = convertColumn(alb,'releaseYear',parseInt);
+        alb = convertColumn(alb,'aquisitionYear',parseInt);
+        alb = convertColumn(alb,'artistfk',parseInt);
+        alb = convertColumn(alb,'songcount',parseInt);
+        alb = convertColumn(alb,'dateOfInterest',parseInt);
+        alb = convertColumn(alb,'sizeInMb',parseFloat);        
+    }
+    return alb;
+}
+
 let validAlbum = (alb) => {
     return (
         alb._id &&
@@ -63,6 +85,17 @@ let validAlbum = (alb) => {
         alb.artist &&
         alb.sizeInMb
     ); 
+}
+
+let convertArtist = (art) => {
+    if( art) {
+        art = convertColumn(art,'_id',parseInt);
+        art = convertColumn(art,'albumCount',parseInt);
+        art = convertColumn(art,'songCount',parseInt);
+        art = convertColumn(art,'dateOfInterest',parseInt);
+        art = convertColumn(art,'sizeInMb',parseFloat);        
+    }
+    return art;
 }
 
 let validArtist = (art) => {
@@ -85,10 +118,11 @@ let songList = () => {
     return _.flatten(albums.map( a=>{
             return a.songs.map(s=>{
                 return {
-                    songTitle: s,
+                    songTitle: s.songName,
                     title: a.title,
                     artist: a.artist,
-                    albKey: a._id
+                    albKey: a._id,
+                    songPk: s.songPk
                 }
             });
        }));
@@ -123,6 +157,7 @@ let collectionApi = {
         }
     },
     updateArtist: (artist) => {
+        artist = convertArtist(artist);
         if(!validArtist(artist)){ return -2;}
         let artKey = _.findIndex(artists,{ _id: artist._id });
         if( artKey>0){
@@ -139,6 +174,7 @@ let collectionApi = {
         }
     },
     addArtist: (artist) => {
+        artist = convertArtist(artist);
         if(!validArtist(artist)){ return -2;}
         let artKey = _.findIndex(artists, {artist: artist.artist });
         if( artKey<0){
@@ -158,8 +194,10 @@ let collectionApi = {
         let albKey = _.findIndex(albums, {'_id': id });
         if( albKey>0){
             let artKey = _.findIndex(artists, {'_id': albums[albKey].artistfk})
+            console.log(`..artist key on delete is ${artKey} wass trying to find ${albums[albKey].artistfk}`)
             if(artKey>0){
                 let albInColkey = _.findIndex(artists[artKey].albums, {'albumpk': id});
+                console.log(`..albInColkey key on delete is ${albInColkey}`)
                 if(albInColkey>0){ artists[artKey].albums.splice(albInColkey,1)  };
             }
             albums.splice(albKey,1)     
@@ -186,7 +224,7 @@ let collectionApi = {
             //get artist Info for consistency
             let art = collectionApi.artistQuery({artist: album.artist});
             if(art.length>0){
-                album.artKey = art[0]._id;
+                album.artistfk = art[0]._id;
                 album.nationality = art[0].nationality;
                 album.dateOfInterest = art[0].dateOfInterest;
                 albums.push(album);
@@ -235,11 +273,13 @@ let collectionApi = {
         }
         
     },
-    removeFromListeningList: (item) => {
+    removeFromListeningList: (type, id) => {
+        console.log(`type is ${type} and id is ${id}`)
+        if( parseInt(id)===NaN){ return -2;}
         try{
         _.remove(listeningList, {
-            type: ((item.title) ? 'album' : 'artist'),
-            key: item._id
+            type: type,
+            key: parseInt(id)
         });
         return 1;
     }
@@ -262,7 +302,7 @@ let collectionApi = {
     albumCount : albums.length,
     artistCount: artists.length,
     artistQuery: (matchingObject, sortColumns, sortOrders) => {
-        return _.orderBy(_.filter(artists, matchingObject),sortColumns,sortOrders)
+        return _.orderBy(_.filter(artists, convertArtist(matchingObject)),sortColumns,sortOrders)
     },
     albumQuery: (matchingObject, sortColumns, sortOrders) => {
         return _.orderBy(_.filter(albums, matchingObject),sortColumns,sortOrders)

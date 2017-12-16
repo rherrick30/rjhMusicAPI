@@ -18,7 +18,7 @@ let albumValidationMessage = (alb) => {
 };
 
 
-let artistVerificationMessage = (art) => {
+let artistValidationMessage = (art) => {
   return 'errors: '+
   ((art.artist) ? '' : ' missing artist' )+
   ((art.nationality) ? '' : ' missing nationality' )+
@@ -31,7 +31,12 @@ let artistVerificationMessage = (art) => {
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+
+
+// different parsers depending upon the caller.  Axois like Json, jQuery like urlEncoding
+//let requestBodyParser = bodyParser.urlencoded({ extended: false })
+let requestBodyParser = bodyParser.json();
+
 
 app.get('/', function (req, res) {
   res.send('Hello World!')
@@ -47,7 +52,7 @@ app.get('/album/:albumKey', (req,res)=>{
     res.send(collectionApi.albumById( parseInt(req.params.albumKey)));
 })
 
-app.delete('/album/:albumkey', (req, res) =>{
+app.delete('/album/:albumkey', requestBodyParser, (req, res) =>{
   console.log(`delete request for albumKey ${req.params.albumkey}`);
   let resultCode = collectionApi.deleteAlbum(parseInt(req.params.albumkey));
   switch(resultCode){
@@ -62,8 +67,8 @@ app.delete('/album/:albumkey', (req, res) =>{
   }
 })
 
-app.post('/album', (req, res) =>{
-  console.log(`got a post request for ${req.body.artistfk}`);
+app.post('/album',requestBodyParser, (req, res) =>{
+  console.log(`got a album post request for ${req.body.title}`);
   let resultCode = collectionApi.addAlbum(req.body);
   switch(resultCode){
     case -1:
@@ -84,8 +89,8 @@ app.post('/album', (req, res) =>{
   }
 });
 
-app.put('/album', (req, res) => {
-  console.log(`got a post request for ${req.body._id}`);
+app.put('/album',requestBodyParser, (req, res) => {
+  console.log(`got an album put request for ${req.body._id}`);
   let resultCode = collectionApi.updateAlbum(req.body);
   switch(resultCode){
     case -1:
@@ -117,8 +122,8 @@ app.get('/artist/:artistKey', (req,res)=>{
   res.send(collectionApi.artistById( parseInt(req.params.artistKey)));
 })
 
-app.delete('/artist/:artistkey', (req, res) =>{
-console.log(`delete request for artistkey ${req.params.artistkey}`);
+app.delete('/artist/:artistkey', requestBodyParser, (req, res) =>{
+console.log(`delete request for artist id ${req.params.artistkey}`);
 let resultCode = collectionApi.deleteArtist(parseInt(req.params.artistkey));
 switch(resultCode){
     case -1:
@@ -132,8 +137,8 @@ switch(resultCode){
 }
 })
 
-app.post('/artist', (req, res) =>{
-console.log(`got a post request for ${req.body.artistfk}`);
+app.post('/artist', requestBodyParser, (req, res) =>{
+console.log(`got an artist post request for ${req.body.artist}`);
 let resultCode = collectionApi.addArtist(req.body);
 switch(resultCode){
   case -1:
@@ -143,9 +148,6 @@ switch(resultCode){
     let errors = artistValidationMessage(req.body);
     res.status(400).send(`Artist object was malformed or missing data ${errors}`);
     break;
-  case -3:
-    res.status(400).send(`Artist not found`);
-    break;
   case 1:
     res.send(`Artist added`);
     break;
@@ -154,8 +156,8 @@ switch(resultCode){
 }
 });
 
-app.put('/artist', (req, res) => {
-console.log(`got a post request for ${req.body._id}`);
+app.put('/artist', requestBodyParser, (req, res) => {
+console.log(`got a artist put request for ${req.body._id}`);
 let resultCode = collectionApi.updateArtist(req.body);
 switch(resultCode){
   case -1:
@@ -181,7 +183,7 @@ app.get('/listeningList', (req, res)=>{
   res.send(collectionApi.getListeningList());
 });
 
-app.post('/listeningList', (req, res)=>{
+app.post('/listeningList', requestBodyParser, (req, res)=>{
   let resultCode = collectionApi.addToListeningList(req.body);
   switch(resultCode){
     case -1:
@@ -202,8 +204,8 @@ app.post('/listeningList', (req, res)=>{
   
 });
 
-app.delete('/listeningList', (req, res)=>{
-  let resultCode = collectionApi.removeFromListeningList(req.body);
+app.delete('/listeningList/:type/:id',requestBodyParser,  (req, res)=>{
+  let resultCode = collectionApi.removeFromListeningList(req.params.type,req.params.id);
   switch(resultCode){
     case -1:
       res.status(500).send(`An internal error has occured.`);
@@ -231,32 +233,36 @@ app.get('/artistCount', (req, res)=>{
   res.send( { artistCount: collectionApi.artistCount});
 }); 
 
-app.post('/albumQuery', (req,res)=>{
+app.post('/albumQuery', requestBodyParser,(req,res)=>{
+  console.log(`query options are ${JSON.stringify(req.body)}`);
   res.send(collectionApi.albumQuery(req.body));
 });
 
-app.post('/artistQuery', (req, res)=>{
+app.post('/artistQuery', requestBodyParser,(req, res)=>{
     res.send(collectionApi.artistQuery(req.body));
 });
 
 app.get('/randomAlbum', (req, res)=>{
-  res.send(collectionApi.randomAlbum());
+  res.send( [ collectionApi.randomAlbum()]);
 });
 
 app.get('/randomArtist', (req, res)=>{
-  res.send(collectionApi.randomArtist());
+  res.send([collectionApi.randomArtist()]);
 });
 
-app.post('/albumAggQuery',(req, res)=>{
+app.post('/albumAggQuery',requestBodyParser, (req, res)=>{
+  
   if(!req.body.column){
     res.status(400).send('Body was malformed.  Should be a Json document with a "column" entry.');
   }
   res.send(collectionApi.albumAggByQuery(req.body.column));
 })
 
-app.post('/artistAggQuery',(req, res)=>{
+app.post('/artistAggQuery', requestBodyParser, (req, res)=>{
+  console.log(`body is ${JSON.stringify(req.body, null, 2)}`)
   if(!req.body.column){
-    res.status(400).send('Body was malformed.  Should be a Json document with a "column" entry.');
+    res.status(400).end('Body was malformed.  Should be a Json document with a "column" entry.');
+    return;
   }
   res.send(collectionApi.artistAggByQuery(req.body.column));
 })
@@ -273,7 +279,7 @@ app.get('/artistSearch/:searchPattern', (req,res)=>{
   res.send(collectionApi.artistNameQuery(req.params.searchPattern));
 });
 
-app.listen(3000, function () {
-  console.log('Example app listening on port 3000!')
+app.listen(3001, function () {
+  console.log('Example app listening on port 3001!')
 });
 

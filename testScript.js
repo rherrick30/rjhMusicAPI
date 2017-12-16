@@ -267,7 +267,7 @@ songs.forEach((e) => {
 
 console.log(`there were ${songs.length} items returned`);
 
-*/
+
 
 let songs = collectionApi.artistNameQuery('rob')
 songs.forEach((e) => {
@@ -281,7 +281,12 @@ collectionApi.albumQuery( {'aquisitionYear':2017}).forEach( (a) =>{
     console.log(`${a.title} by ${a.artist}`);
 }); 
 
-
+*/
 /**/
 
+
+
+collectionApi.artistQuery( {"nationality":"UK", "dateOfInterest": "2001"}).forEach( (a) =>{
+    console.log(a.artist);
+}); 
 
