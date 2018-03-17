@@ -2,7 +2,9 @@ import {collectionApi} from './api.js';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import fs from 'fs';
 
+require('dotenv').config()
 
 let albumValidationMessage = (alb) => {
   return 'errors: '+
@@ -250,6 +252,10 @@ app.get('/randomArtist', (req, res)=>{
   res.send([collectionApi.randomArtist()]);
 });
 
+app.get('/randomSong', (req, res) => {
+  res.send([collectionApi.randomSong()]);
+});
+
 app.post('/albumAggQuery',requestBodyParser, (req, res)=>{
   
   if(!req.body.column){
@@ -277,6 +283,54 @@ app.get('/albumSearch/:searchPattern', (req,res)=>{
 
 app.get('/artistSearch/:searchPattern', (req,res)=>{
   res.send(collectionApi.artistNameQuery(req.params.searchPattern));
+});
+
+app.get('/song/:id', (req, res)=>{
+  if (process.env.MUSIC_HOME_FOLDER === undefined){
+    res.status(501).end("Sorry, Music streaming is not available on this instance");
+  }
+  const song = collectionApi.songById(req.params.id);
+  if(song.length!=1)
+  {
+    console.log(`song ${req.params.id} not found`)
+    res.status(500).end(`Could not retreve song with key ${req.params.id}`);
+  }
+
+
+
+  const path = process.env.MUSIC_HOME_FOLDER + song[0].fullpath
+  const stat = fs.statSync(path)
+  const fileSize = stat.size
+  const range = req.headers.range
+
+  console.log(`song ${req.params.id} was found and has length ${fileSize}`)
+
+
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-")
+    const start = parseInt(parts[0], 10)
+    const end = parts[1] 
+      ? parseInt(parts[1], 10)
+      : fileSize-1
+    const chunksize = (end-start)+1
+    const file = fs.createReadStream(path, {start, end})
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': 'audio/mp3',
+    }
+
+    res.writeHead(206, head);
+    file.pipe(res);
+  } else {
+    const head = {
+      'Content-Length': fileSize,
+      'Content-Type': 'audio/mp3',
+    }
+    res.writeHead(200, head)
+    fs.createReadStream(path).pipe(res)
+  }
 });
 
 app.listen(3001, function () {

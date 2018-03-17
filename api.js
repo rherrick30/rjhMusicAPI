@@ -1,5 +1,6 @@
 import albums from './data/Albums.json';
 import artists from './data/Artists.json';
+import songs from './data/Songs.json';
 import listeningList from './data/ListeningList.json';
 import _ from 'lodash';
 import fs from 'fs';
@@ -118,7 +119,7 @@ let songList = () => {
     return _.flatten(albums.map( a=>{
             return a.songs.map(s=>{
                 return {
-                    songTitle: s.songName,
+                    songName: s.songName,
                     title: a.title,
                     artist: a.artist,
                     albKey: a._id,
@@ -313,6 +314,10 @@ let collectionApi = {
     randomAlbum: () => {
         return albums[_.random(0,albums.length-1)];
     },
+    randomSong: () => {
+        const songL = songList();
+        return songL[_.random(0,songL.length-1)];
+    },
     artistAggByQuery: (col) => {
         return aggQuery(artists, col,  ['songCount','sizeInMb', 'albumCount']);
     },
@@ -333,8 +338,12 @@ let collectionApi = {
         return _.filter(artists,(e)=>{
             return e.artist.toLowerCase().indexOf(searchPattern.toLowerCase()) !== -1;
         });
+    },
+    songById: (id) => {
+        return _.filter(songs,(e) => {
+            return e.songPk == id;
+        })
     }
-
 };
 
 

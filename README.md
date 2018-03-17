@@ -54,6 +54,8 @@ In addition to the REST endpoints, the API exposes some other endpoints that pri
 
 /randomArtist (get)
 
+/randomSong (get)
+
 /albumAggQuery (post)  ->  Returns a list of aggregations {tag, count, songCount, sizeInMb} for a specific column.  The object posted is a JSON object with a 'column' attribute specifying the column on which to aggregate.  For example {column: 'releaseYear'}
 
 /artistAggQuery (post) -> same idea as albumAggQuery, but you get an additional statistic:  albumCount, and the count statistic refers to # artists of course.
@@ -63,6 +65,8 @@ In addition to the REST endpoints, the API exposes some other endpoints that pri
 /albumSearch/:searchPattern (get) -> you supply a fragment of a album name and get a list of albums in return.
 
 /artistSearch/:searchPattern (get) -> you supply a fragment of a artist name and get a list of artists in return.
+
+'/song/:id' (get) ->  Stream the song with the specified id.  Note this is not available (501) on AWS do to logistical (i.e., I dont want to load my entire collection in the cloud) and legal (i.e., streaming copyrighted mp3s on a web service is of of questionable legality) purposes.
 
 ## Structures
 These are the data structures which are used by this API.  These are of course JSON, but I am providing a type below to help w/the understanding of data rendering and manipulation.  
@@ -83,8 +87,8 @@ These are the data structures which are used by this API.  These are of course J
         bool downloaded
         int songcount
         object[] songs  
-            int songpk
-            string songTitle
+            int songPk
+            string songName
 
 ### Albums
     int _id   
@@ -94,8 +98,8 @@ These are the data structures which are used by this API.  These are of course J
     string downloaded ("true" or "false")
     int songcount
     object[] songs  
-        int songpk
-        string songTitle    
+        int songPk
+        string songName
     int artistfk
     string artist
     string nationality
@@ -103,7 +107,7 @@ These are the data structures which are used by this API.  These are of course J
     float sizeInMb
 
 ### Song
-    string songTitle
+    string songName
     string title   (i.e., album title)
     string artist
     int albKey

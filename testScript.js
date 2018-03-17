@@ -284,9 +284,24 @@ collectionApi.albumQuery( {'aquisitionYear':2017}).forEach( (a) =>{
 */
 /**/
 
+console.log('');
+console.log('random albums');
+for(let i=0;i<10;i++){
+    let a = collectionApi.randomAlbum();   
+    console.log(`...${a.title} by ${a.artist}`);
+}
+
+console.log('random artists');
+for(let i=0;i<10;i++){
+    let a = collectionApi.randomArtist();   
+    console.log(`...${a.artist}`);
+}
 
 
-collectionApi.artistQuery( {"nationality":"UK", "dateOfInterest": "2001"}).forEach( (a) =>{
-    console.log(a.artist);
-}); 
-
+console.log('');
+console.log('random songs');
+for(let i=0;i<10;i++){
+    let a = collectionApi.randomSong();   
+    console.log(`...${a.songTitle} by ${a.artist}`);
+    //console.log(`...${a}`);
+}
