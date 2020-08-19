@@ -1,0 +1,9 @@
+{
+  "presets": ["latest"],
+  "plugins":[
+    "@babel/plugin-proposal-class-properties"
+    ,"@babel/plugin-syntax-class-properties"
+    ],
+    "sourceMaps":"inline",
+    "retailLines":true
+}
