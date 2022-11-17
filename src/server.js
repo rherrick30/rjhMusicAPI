@@ -36,6 +36,7 @@ let artistValidationMessage = (art) => {
 
 const app = express();
 app.use(cors());
+
 // different parsers depending upon the caller.  Axois like Json, jQuery like urlEncoding
 //let requestBodyParser = bodyParser.urlencoded({ extended: false })
 let requestBodyParser = bodyParser.json();
@@ -59,8 +60,8 @@ app.get('/collectionstats', async(req,res)=>{
 
 app.get('/artists', async (req,res)=>{
     try{
-      const {includeAlbums, includeSongs} = req.query
-      const artists = await musicApi.artistQuery({}, includeAlbums, includeSongs)
+      const {includeAlbums, includeSongs, randomize} = req.query
+      const artists = await musicApi.artistQuery({}, includeAlbums, includeSongs, randomize)
       res.json(artists)
     }catch(error){
       res.status(500).json({msg:"error", error})
@@ -299,26 +300,33 @@ app.get('/playlistsongs/:id', async (req, res)=>{
   }
 });
 
-/*
-app.post('/albumAggQuery',requestBodyParser, (req, res)=>{
-  
-  if(!req.body.column){
-    res.status(400).send('Body was malformed.  Should be a Json document with a "column" entry.');
-  }
-  res.send(collectionApi.albumAggByQuery(req.body.column));
+app.post('/summary', async (req, res)=>{
+  const results = await musicApi.statisticalQuery(req.body.category)
+  res.json([...results].map(r=>{
+    return {
+      key: r[0],
+      albums: r[1].albums,
+      artists: r[1].artists,
+    }
+  }))
 })
 
-app.post('/artistAggQuery', requestBodyParser, (req, res)=>{
-  console.log(`body is ${JSON.stringify(req.body, null, 2)}`)
-  if(!req.body.column){
-    res.status(400).end('Body was malformed.  Should be a Json document with a "column" entry.');
-    return;
-  }
-  res.send(collectionApi.artistAggByQuery(req.body.column));
-})
-*/
 
 app.listen(3001, requestBodyParser, function () {
   console.log('Example app listening on port 3001!')
 });
 
+// and here a second endpoint for streaming songs
+const streamingApp = express();
+streamingApp.use(cors());
+streamingApp.use(requestBodyParser)
+
+streamingApp.get('/', async (req, res) => {
+  const batchSize = parseInt(process.env.STREAMING_BATCH_SIZE)
+  const randomSong = await musicApi.randomSong(batchSize);
+  res.send(randomSong);
+});
+
+streamingApp.listen(3004, requestBodyParser, function(){
+  console.log('Streaming application listening on part 3004')
+})

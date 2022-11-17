@@ -18,6 +18,18 @@ const api = (mongoUrl) => {
         })
     //}
 
+    const _randomizeArray = (arr) => {
+        arr.forEach(e => {
+            e["_randkey"] = Math.random()
+        });
+    
+        const retval = _.sortBy(arr,'_randkey')
+        return retval.map(s=> {
+            delete s._randkey
+            return s
+        })
+    }
+
     let validPlayList = (pl) => {
         if(pl.name===undefined || pl.entries===undefined) { return false;}
         if(!Array.isArray(pl.entries)) { return false;}
@@ -111,9 +123,15 @@ const api = (mongoUrl) => {
         return _albumExpansion(matchParms,includeArtist,includeSongs)
     }
 
-    const artistQuery = async (parameter, includeAlbums, includeSongs) => {
+    const artistQuery = async (parameter, includeAlbums, includeSongs, randomize) => {
         const matchParms = [{'$match': (parameter) ? parameter : {}}]
-        return _artistExpansion(matchParms, includeAlbums, includeSongs)
+        const returnValue =  await _artistExpansion(matchParms, includeAlbums, includeSongs)
+        if(randomize){
+            return _randomizeArray(returnValue)
+        }
+        else{
+            return returnValue
+        }
     }
 
     const artistCount = async() => {
@@ -162,16 +180,28 @@ const api = (mongoUrl) => {
     }
 
     const getPlaylist = async (id) => {
-        const retVal = await musicDb.collection('playlists').findOne({ _id : new ObjectId(id)})
+        const retVal = await musicDb.collection('playlists').findOne({ _id : id})
         const newItems = await Promise.all(retVal.entries.map(e=>getPlaylistItem(e)))
         return {...retVal, entries:newItems} 
     }
+
+    const _makeId = () => {
+        let ID = "";
+        let characters = "abcdef0123456789";
+        for ( var i = 0; i < 24; i++ ) {
+          ID += characters.charAt(Math.floor(Math.random() * 16));
+        }
+        return ID;
+      }
 
     const updatePlaylist = async (playlist) => {
         try{
             if(!validPlayList(playlist)){ return -2;} else{
             const val = await musicDb.collection('playlists').update(
-                {name: playlist.name},
+                {
+                    name: playlist.name,
+                    _id: playlist._id || _makeId()
+                },
                 playlist,
                 {upsert: true}
                 )
@@ -187,7 +217,7 @@ const api = (mongoUrl) => {
     const playlistToSongs = async (id) => {
         //try{
             let returnVal = [];
-            return musicDb.collection('playlists').findOne({ _id : new ObjectId(id)})
+            return musicDb.collection('playlists').findOne({ _id : id})
             .then( async playlist=>{
                 if(playlist === null){
                     return -1;
@@ -253,7 +283,7 @@ const api = (mongoUrl) => {
                 {"$lookup":{"from":"artists","localField":"artistFk","foreignField":"_id","as":"artist"}},
                 {"$sort": {"added":-1}},
                 {"$limit":NUMBER_NEWEST}
-            ])
+            ],"true","true")
         const randomAlbums = await randomAlbum(NUMBER_RAND)    
         return {
             artistCount: await musicDb.collection('artists').countDocuments({}),
@@ -298,7 +328,6 @@ const api = (mongoUrl) => {
         let song = newPlaylist[_.random(0,newPlaylist.length-1)];
         //console.log(`...song is ${JSON.stringify(song)}`);
         newPlaylist= newPlaylist.filter(s => s!=song);
-        //console.log(`...after removing the song, the playlist is ${JSON.stringify(newPlaylist.length)} long`);
         currentSongQueues.push({
             ipAddress: ip,
             playlist: playlistId,
@@ -308,6 +337,24 @@ const api = (mongoUrl) => {
         //console.log(' ')
         //console.log(`returning ${JSON.stringify(song)}`)
         return [song];
+    }
+
+    const statisticalQuery = async (category) => {
+        const albums = await _albumExpansion([],"true","false")
+        return albums.reduce((agg, a)=>{
+            const key = a[category]
+            if(agg.has(key)){
+              let entry = agg.get(key)
+              entry.albums.push({title: `${a.title} by ${a.artist}`, _id: a._id, songCount: a.songCount})
+              if( !entry.artists.map(a=>{return a._id}).includes(a.artistFk)){ entry.artists.push({artist: a.artist, _id: a.artistFk})}
+            }else{
+              agg.set (key, {
+                albums: [{title: `${a.title} by ${a.artist}`, _id: a._id, songCount: a.songCount}],
+                artists: [{artist: a.artist, _id: a.artistFk}]
+              })
+            }
+            return agg
+          }, new Map()) 
     }
 
     return {
@@ -326,6 +373,7 @@ const api = (mongoUrl) => {
         playlistToSongs,
         stats,
         serveSongFromPlaylist,
+        statisticalQuery,
     }
 }
 
