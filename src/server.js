@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import fs from 'fs';
 import api from './api'
 import 'regenerator-runtime/runtime'
+import wlogger from './wlogger'
 
 
 require('dotenv').config()
@@ -52,7 +53,6 @@ app.get('/', function (req, res) {
 
 
 app.get('/collectionstats', async(req,res)=>{
-  console.log('in stats')
   const stats = await musicApi.stats()
   res.send(stats)
 })
@@ -203,7 +203,7 @@ app.get('/playsong/:id', async (req, res)=>{
   const song = await musicApi.songQuery({_id: req.params.id}, "false", "false")
   if(song.length!=1)
   {
-    console.log(`song ${req.params.id} not found`)
+    wlogger.error(`song ${req.params.id} not found`)
     res.status(500).end(`Could not retreve song with key ${req.params.id}`);
   }
 
@@ -214,7 +214,7 @@ app.get('/playsong/:id', async (req, res)=>{
   const fileSize = stat.size
   const range = req.headers.range
 
-  console.log(`song ${req.params.id} was found and has length ${fileSize}`)
+  wlogger.info(`song ${req.params.id} was found and has length ${fileSize}`)
 
 
   if (range) {
@@ -311,9 +311,11 @@ app.post('/summary', async (req, res)=>{
   }))
 })
 
+const port = process.env.PORT || 3001
+const streamingPort = process.env.STREAMING_PORT || 3004
 
-app.listen(3001, requestBodyParser, function () {
-  console.log('Example app listening on port 3001!')
+app.listen(port, requestBodyParser, function () {
+  wlogger.info(`RJH MusicAPI listening on port ${port}!`)
 });
 
 // and here a second endpoint for streaming songs
@@ -327,6 +329,6 @@ streamingApp.get('/', async (req, res) => {
   res.send(randomSong);
 });
 
-streamingApp.listen(3004, requestBodyParser, function(){
-  console.log('Streaming application listening on part 3004')
+streamingApp.listen(streamingPort, requestBodyParser, function(){
+  wlogger.info(`Streaming application listening on part ${streamingPort}`)
 })

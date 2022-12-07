@@ -2,6 +2,7 @@ import MongoClient, { ObjectId } from 'mongodb'
 import _ from 'lodash'
 import { removeAllListeners } from 'nodemon'
 import fs from 'fs';
+import wlogger from './wlogger'
 
 const NUMBER_NEWEST = 20;
 const NUMBER_RAND = 10;
@@ -12,7 +13,8 @@ const api = (mongoUrl) => {
         let musicDb
         MongoClient.connect(mongoUrl, function(err,db){
             if(err){
-                console.log(`error connecting to mongo ${mongoUrl}:${JSON.stringify(err)}`)
+                const errorMsg = `error connecting to mongo ${mongoUrl}:${JSON.stringify(err)}`
+                wlogger.error(errorMsg)
             }
             musicDb = db.db("music")
         })
@@ -106,7 +108,7 @@ const api = (mongoUrl) => {
     }
 
     const _writePlaylist = () => {
-        const fileName = `/home/node/app/playlist${new Date().toISOString().replace(/:/g,'_')}.json`
+        const fileName = `./logs/playlist${new Date().toISOString().replace(/:/g,'_')}.json`
         playlists().then(plData=>{
             //const plData = p.map(pl=>`${JSON.stringify(pl)},`)
             const backupFile = fs.writeFileSync(fileName, JSON.stringify(plData))
@@ -114,16 +116,19 @@ const api = (mongoUrl) => {
     }
 
     const songQuery = async (parameter, includeArtist, includeAlbum) => {
+        wlogger.info(`song query called`,{parameter,includeArtist,includeAlbum})
         const matchParms = [{'$match': (parameter) ? parameter : {}}]
         return _songExpansion(matchParms,includeArtist, includeAlbum)
     }  
 
     const albumQuery = async (parameter, includeArtist, includeSongs) => {
+        wlogger.info(`album query called`,{parameter,includeArtist,includeSongs})
         const matchParms = [{'$match': (parameter) ? parameter : {}}]
         return _albumExpansion(matchParms,includeArtist,includeSongs)
     }
 
     const artistQuery = async (parameter, includeAlbums, includeSongs, randomize) => {
+        wlogger.info(`artist query called`,{parameter, includeAlbums, includeSongs, randomize})
         const matchParms = [{'$match': (parameter) ? parameter : {}}]
         const returnValue =  await _artistExpansion(matchParms, includeAlbums, includeSongs)
         if(randomize){
@@ -147,25 +152,30 @@ const api = (mongoUrl) => {
     }
 
     const randomArtist = async (count) => {
+        wlogger.info(`randomArtist called`, {count})
         const queryParms = [{ $sample: { size: count } }]
         return await _artistExpansion(queryParms, "true", "true")
     }
 
     const randomAlbum = async (count) => {
+        wlogger.info(`randomAlbum called`, {count})
         const queryParms = [{ $sample: { size: count } }]
         return await _albumExpansion(queryParms, "true", "true")
     }
 
     const randomSong = async (count) => {
+        wlogger.info(`randomSong called`,{count})
         const queryParms = [{ $sample: { size: count } }]
         return await _songExpansion(queryParms, "true", "true")
     }
 
     const playlists = async () => {
+        wlogger.info('playlists called')
         return await musicDb.collection('playlists').aggregate({}).sort({"name": 1}).toArray()
     }
 
     const getPlaylistItem = async (entry) => {
+        wlogger.info(`getPlaylistItem called`,{entry})
         switch(entry.type) {
             case "song":
                 const song = await musicDb.collection('songs').findOne({_id: entry.key})
@@ -180,6 +190,7 @@ const api = (mongoUrl) => {
     }
 
     const getPlaylist = async (id) => {
+        wlogger.info(`getPlaylist called`, {id})
         const retVal = await musicDb.collection('playlists').findOne({ _id : id})
         const newItems = await Promise.all(retVal.entries.map(e=>getPlaylistItem(e)))
         return {...retVal, entries:newItems} 
@@ -195,6 +206,7 @@ const api = (mongoUrl) => {
       }
 
     const updatePlaylist = async (playlist) => {
+        wlogger.info(`uploadPlaylist called`,{playlist})
         try{
             if(!validPlayList(playlist)){ return -2;} else{
             const val = await musicDb.collection('playlists').update(
@@ -216,11 +228,12 @@ const api = (mongoUrl) => {
 
     const playlistToSongs = async (id) => {
         //try{
+            wlogger.info(`playlistToSongs called`, {id})
             let returnVal = [];
             return musicDb.collection('playlists').findOne({ _id : id})
             .then( async playlist=>{
                 if(playlist === null){
-                    return -1;
+                    return [];
                 }
                 returnVal = await Promise.all(
                     playlist.entries.map( e =>{
@@ -274,6 +287,7 @@ const api = (mongoUrl) => {
     }
 
     const stats = async (id) => {
+        wlogger.info(`stats called`, {id})
         const sizeInMb =  await musicDb.collection('songs')
             .aggregate([{ $group:{ _id:null, "total": {$sum: "$sizeInMb" }}}])
             .toArray()
@@ -302,6 +316,7 @@ const api = (mongoUrl) => {
     };
 
     const serveSongFromPlaylist = async (playlistId, ip) =>{
+        wlogger.info(`serveSongFromPlaylist called`, {playlistId, ip})
         //see if there is a queue for this ip already
         let newPlaylist = [];
         let songq = findSongQueues(ip);
@@ -323,6 +338,11 @@ const api = (mongoUrl) => {
             //console.log(`...converted> ${asArray.length}`)
         }
 
+        if(newPlaylist.length === 0){
+            wlogger.info("serveSonglistFromPlaylist found an empty list so we are reverting to a random song")
+            return randomSong(1)
+        }
+
         currentSongQueues = currentSongQueues.filter(q => q!=songq);
         //console.log(`...after removing songq from master list, its ${JSON.stringify(currentSongQueues.length)} long`);
         let song = newPlaylist[_.random(0,newPlaylist.length-1)];
@@ -340,6 +360,7 @@ const api = (mongoUrl) => {
     }
 
     const statisticalQuery = async (category) => {
+        wlogger.info(`statisticalQuery called`, {category})
         const albums = await _albumExpansion([],"true","false")
         return albums.reduce((agg, a)=>{
             const key = a[category]
