@@ -2,7 +2,9 @@ import MongoClient, { ObjectId } from 'mongodb'
 import _ from 'lodash'
 import { removeAllListeners } from 'nodemon'
 import fs from 'fs';
-import wlogger from './wlogger'
+import winstonLogs from './wlogger'
+
+const wlogger = winstonLogs.get('wlogger')
 
 const NUMBER_NEWEST = 20;
 const NUMBER_RAND = 10;

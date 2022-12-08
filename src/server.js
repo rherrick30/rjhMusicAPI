@@ -5,8 +5,10 @@ import bodyParser from 'body-parser';
 import fs from 'fs';
 import api from './api'
 import 'regenerator-runtime/runtime'
-import wlogger from './wlogger'
+import winstonLogs from './wlogger'
 
+const wlogger = winstonLogs.get('wlogger')
+const playedSongs = winstonLogs.get('playedSongs')
 
 require('dotenv').config()
 
@@ -207,14 +209,20 @@ app.get('/playsong/:id', async (req, res)=>{
     res.status(500).end(`Could not retreve song with key ${req.params.id}`);
   }
 
-
+  playedSongs.info(`${song[0].albumfk}::${song[0]._id}->${song[0].fullpath}`)
 
   const path = process.env.MUSIC_HOME_FOLDER + song[0].fullpath
+  if(!fs.existsSync(path)){
+    wlogger.error(`file ${path} does not exist!`)
+    res.send(500)
+    return
+  }
   const stat = fs.statSync(path)
   const fileSize = stat.size
   const range = req.headers.range
 
   wlogger.info(`song ${req.params.id} was found and has length ${fileSize}`)
+  
 
 
   if (range) {
