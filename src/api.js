@@ -10,15 +10,28 @@ const NUMBER_NEWEST = 20;
 const NUMBER_RAND = 10;
 let currentSongQueues = [];
 
+
+const getRandomInt = (max) => {
+    return Math.floor(Math.random() * max);
+  }
+
 const api = (mongoUrl) => {
     //constructor(mongoUrl){
-        let musicDb
+        let musicDb, availableSongs=[]
+        
         MongoClient.connect(mongoUrl, function(err,db){
             if(err){
                 const errorMsg = `error connecting to mongo ${mongoUrl}:${JSON.stringify(err)}`
                 wlogger.error(errorMsg)
             }
             musicDb = db.db("music")
+
+            availableSongs = musicDb.collection('songs').find({}, {_id:1, fullpath:1})
+                .toArray().then(songs=>{
+
+                    availableSongs = songs.filter(s=>  fs.existsSync(`${process.env.MUSIC_HOME_FOLDER}${s.fullpath.replace(/\\/g,'/') }`))
+                    console.log(`There are ${availableSongs.length} available songs`)    
+                })
         })
     //}
 
@@ -57,8 +70,10 @@ const api = (mongoUrl) => {
         
         return songs.map(s=>{
             const {album, artist, ...base} = s
+            const filePath = (process.env.LINUX_DIR_FORMAT) ? base.fullpath.replace(/\\/g,'/') : undefined
             return {...base,
-                fullpath: (process.env.LINUX_DIR_FORMAT) ? base.fullpath.replace(/\\/g,'/') : undefined,
+                fullpath: filePath,
+                exists: fs.existsSync(`${process.env.MUSIC_HOME_FOLDER}${filePath}`),
                 artist: (artist && artist.length>0) ? artist[0].artist : undefined,
                 nationality: (artist && artist.length>0) ? artist[0].nationality : undefined,
                 dateOfInterest: (artist && artist.length>0) ? artist[0].dateOfInterest : undefined,
@@ -84,7 +99,10 @@ const api = (mongoUrl) => {
             return {...base,
                 artist: (artist && artist.length>0) ? artist[0].artist : undefined,
                 nationality: (artist && artist.length>0) ? artist[0].nationality : undefined,
-                dateOfInterest: (artist && artist.length>0) ? artist[0].dateOfInterest : undefined
+                dateOfInterest: (artist && artist.length>0) ? artist[0].dateOfInterest : undefined,
+                songs: base.songs?.map(s=> Object.assign({}, {...s}, {
+                    exists: fs.existsSync(`${process.env.MUSIC_HOME_FOLDER}${s.fullpath.replace(/\\/g,'/') }`)
+                }))
             }
         })
     }
@@ -102,7 +120,9 @@ const api = (mongoUrl) => {
             return{ ...base,
                 albums : (albums) ? _.sortBy(albums,"releaseYear").map(alb=>{
                     return {...alb,
-                        songs: (songs) ? songs.slice().filter(s=> s.albumfk === alb._id) : undefined
+                        songs: (songs) ? songs.slice().filter(s=> s.albumfk === alb._id).map(s=> Object.assign({}, {...s}, {
+                            exists: fs.existsSync(`${process.env.MUSIC_HOME_FOLDER}${s.fullpath.replace(/\\/g,'/') }`)
+                        })) : undefined
                     }
                 }) : undefined
             }
@@ -167,7 +187,8 @@ const api = (mongoUrl) => {
 
     const randomSong = async (count) => {
         wlogger.info(`randomSong called`,{count})
-        const queryParms = [{ $sample: { size: count } }]
+        const chosenSong = availableSongs[getRandomInt(availableSongs.length)]
+        const queryParms = [{ $match: {_id: chosenSong._id }}]
         return await _songExpansion(queryParms, "true", "true")
     }
 
